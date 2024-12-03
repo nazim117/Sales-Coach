@@ -1,33 +1,32 @@
-import whisper
-from textblob import TextBlob
-import nltk
-from dotenv import load_dotenv
+from transcription.transcriber import transcribe_and_translate
+from sentiment_analysis.analyzer import generate_summary_and_suggestions
 import os
-
-nltk.download('punkt')
-nltk.download('punkt_tab')
-nltk.download('averaged_perceptron_tagger')
-nltk.download('averaged_perceptron_tagger_eng')
+from dotenv import load_dotenv
 
 load_dotenv()
 
-model = whisper.load_model("base")
-
-def transcribe_and_translate(audio_path):
-    result = model.transcribe(audio_path, task="translate")
-    return result["text"]
-
-
 audio_file = os.getenv('AUDIO_URL')
-translated_text = transcribe_and_translate(audio_file)
 
+translated_text = transcribe_and_translate(audio_file)
 print("Translated Transcription:", translated_text)
 
-blob = TextBlob(translated_text)
+result = generate_summary_and_suggestions(translated_text)
+print(result)
 
-print("POS Tags:", blob.tags)
+from src.data_loader import prepare_data
 
-print("Noun Phrases:", blob.noun_phrases)
+# For loading and processing data
+# def main():
+#     # Path to the data files
+#     lines_file_path = 'data/cornell_movie_dialogs/movie_lines.txt'
+#     conv_file_path = 'data/cornell_movie_dialogs/movie_conversations.txt'
+    
+#     # Prepare data using the function from data_loader.py
+#     lines_df, conversations_df = prepare_data(lines_file_path, conv_file_path)
 
-for sentence in blob.sentences:
-    print("Sentence Sentiment Polarity:", sentence.sentiment.polarity)
+#     # Print the first few rows of data for inspection
+#     print(lines_df.head())
+#     print(conversations_df.head())
+
+# if __name__ == '__main__':
+#     main()

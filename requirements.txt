@@ -1,0 +1,4 @@
+whisper
+textblob
+nltk
+python-dotenv
