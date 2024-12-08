@@ -8,7 +8,12 @@ __pycache__/
 
 .env
 data/
-
+logs/
+model/
+sales_coach_model_fold_1
+sales_coach_model_fold_2
+sales_coach_model_fold_3
+sales_coach_model_fold_4
 # Distribution / packaging
 .Python
 build/

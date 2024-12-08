@@ -1,28 +1,29 @@
 import pandas as pd
+from sklearn.preprocessing import LabelEncoder
 
-def load_movie_lines(file_path):
-    lines = pd.read_csv(
-        file_path,
-        sep=r'\s\+\+\+\$\+\+\+\s',
-        header=None,
-        names=['line_id', 'character_id', 'movie_id', 'text'],
-        engine='python',
-        encoding='ISO-8859-1'
-    )
-    return lines
+def load_and_preprocess_data(file_path):
+    """
+    Loads and preprocesses the dataset for cross-validation.
+    
+    Args:
+        file_path (str): Path to the dataset CSV file.
+    
+    Returns:
+        tuple: texts, labels, label_classes
+    """
+    data = pd.read_csv(file_path)
+    
+    # Clean text
+    def clean_text(text):
+        text = text.lower().strip()
+        text = text.replace("\n", " ")
+        return text
 
-def load_movie_conversations(file_path):
-    conversations = pd.read_csv(
-        file_path,
-        sep=r'\s\+\+\+\$\+\+\+\s',
-        header=None,
-        names=['character_1', 'character_2', 'movie_id', 'lines'],
-        engine='python',
-        encoding='ISO-8859-1'
-    )
-    return conversations
+    data["transcript"] = data["transcript"].apply(clean_text)
 
-def prepare_data(lines_file_path, conv_file_path):
-    lines_df = load_movie_lines(lines_file_path)
-    conversations_df = load_movie_conversations(conv_file_path)
-    return lines_df, conversations_df
+    # Encode sentiment labels
+    label_encoder = LabelEncoder()
+    data["sentiment_label"] = label_encoder.fit_transform(data["sentiment"])
+
+    # Return processed data
+    return data["transcript"], data["sentiment_label"], label_encoder.classes_

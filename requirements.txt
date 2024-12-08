@@ -1,4 +1,5 @@
-whisper
-textblob
-nltk
-python-dotenv
+transformers
+torch
+scikit-learn
+pandas
+numpy
