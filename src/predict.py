@@ -1,52 +1,40 @@
 from transformers import BertForSequenceClassification, BertTokenizer
 import torch
+import torch.nn.functional as F
 
-# Load the trained model and tokenizer
-model_path = "./sales_coach_model_fold_1"  # Path to one of your saved models
+# Use the correct pre-trained tokenizer
+model_path = "model_fold_4/checkpoint-8"  # Path to checkpoint
+tokenizer_path = "bert-base-uncased"            # Original tokenizer path
+
+# Load model and tokenizer
 model = BertForSequenceClassification.from_pretrained(model_path)
-tokenizer = BertTokenizer.from_pretrained(model_path)
+tokenizer = BertTokenizer.from_pretrained(tokenizer_path)
 
 # Set the model to evaluation mode
 model.eval()
 
-# Define the label mapping (adjust if necessary)
+# Define the label mapping
 label_mapping = {0: "negative", 1: "neutral", 2: "positive"}
 
 def predict_sentiment(text, model, tokenizer):
-    """
-    Predicts the sentiment of a given text using the trained model.
-
-    Args:
-        text (str): The input text.
-        model: The trained model instance.
-        tokenizer: The tokenizer used during training.
-
-    Returns:
-        str: The predicted sentiment label.
-    """
-    # Tokenize the input text
     inputs = tokenizer(
         text,
-        max_length=128,
+        max_length=512,
         padding="max_length",
         truncation=True,
         return_tensors="pt",
     )
-
-    # Move inputs to GPU if available
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model.to(device)
-    inputs = {key: val.to(device) for key, val in inputs.items()}
-
-    # Perform inference
+    model.eval()
     with torch.no_grad():
-        outputs = model(**inputs)
-        logits = outputs.logits
-        predicted_class = torch.argmax(logits, dim=1).item()
-
-    # Map numerical prediction to sentiment label
+        logits = model(**inputs).logits
+        probs = F.softmax(logits, dim=1)
+        print(f"Logits: {logits}")
+        print(f"Softmax Probabilities: {probs}")
+        predicted_class = torch.argmax(probs, dim=1).item()
+        print(f"Predicted Class: {predicted_class}")
     return label_mapping[predicted_class]
 
+# Test with some example texts
 test_texts = [
     "I am extremely happy with the product. It’s fantastic!",  # Expected: positive
     "This is the worst experience I’ve ever had.",            # Expected: negative
@@ -56,4 +44,3 @@ test_texts = [
 for text in test_texts:
     sentiment = predict_sentiment(text, model, tokenizer)
     print(f"Text: {text}\nPredicted Sentiment: {sentiment}\n")
-

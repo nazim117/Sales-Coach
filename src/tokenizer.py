@@ -13,25 +13,15 @@ def load_tokenizer(model_name="bert-base-uncased"):
     """
     return BertTokenizer.from_pretrained(model_name)
 
-def tokenize_data(texts, labels, tokenizer, max_len=128):
-    """
-    Tokenizes the text data for use with a transformer model.
-
-    Args:
-        texts (list of str): The input text data.
-        labels (list of int): The corresponding labels for the text data.
-        tokenizer: Pre-trained tokenizer.
-        max_len (int): Maximum length of tokenized sequences.
-
-    Returns:
-        dict: Tokenized inputs with attention masks and labels.
-    """
-    inputs = tokenizer(
-        list(texts),
+def tokenize_data(texts, tokenizer, max_len=512):
+    # Debugging step
+    print(f"Original Text Length: {len(texts[0])}")  # Print first text length
+    tokenized = tokenizer(
+        texts,
         max_length=max_len,
         padding="max_length",
         truncation=True,
         return_tensors="pt",
     )
-    inputs["labels"] = torch.tensor(labels)
-    return inputs
+    print(f"Tokenized Input IDs Length: {len(tokenized['input_ids'][0])}")
+    return tokenized

@@ -1,50 +1,93 @@
-from transformers import BertForSequenceClassification, Trainer, TrainingArguments
+from sklearn.metrics import precision_recall_fscore_support, accuracy_score
+import numpy as np
+from sklearn.metrics import classification_report
+from transformers import Trainer, TrainingArguments
+import torch
+from torch.nn import CrossEntropyLoss
 
-def load_model(num_labels, model_name="bert-base-uncased"):
+class WeightedTrainer(Trainer):
     """
-    Loads the pre-trained model.
-
-    Args:
-        num_labels (int): Number of output labels.
-        model_name (str): Name of the pre-trained model.
-
-    Returns:
-        model: Loaded pre-trained model.
+    Custom Trainer to handle class weights during training.
     """
-    return BertForSequenceClassification.from_pretrained(model_name, num_labels=num_labels)
+    def __init__(self, *args, class_weights=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.class_weights = class_weights
 
-def train_model(train_dataset, val_dataset, model, tokenizer, output_dir="./model"):
+    def compute_loss(self, model, inputs, return_outputs=False, **kwargs):
+        """
+        Compute loss with optional class weights.
+
+        Args:
+            model: The model instance.
+            inputs: The input data.
+            return_outputs (bool): Whether to return model outputs.
+            **kwargs: Additional arguments passed by the Trainer.
+
+        Returns:
+            loss: Computed loss value.
+        """
+        labels = inputs.pop("labels")
+        outputs = model(**inputs)
+        logits = outputs.logits
+        print(f"Logits: {logits}")
+        print(f"Predictions: {torch.argmax(logits, dim=1)}")
+    
+        # Use class weights if available
+        if self.class_weights is not None:
+            loss_fn = CrossEntropyLoss(weight=self.class_weights)
+        else:
+            loss_fn = CrossEntropyLoss()
+
+        loss = loss_fn(logits, labels)
+        print(f"Loss: {loss.item()}")
+        return (loss, outputs) if return_outputs else loss
+
+def compute_metrics(eval_preds):
     """
-    Trains the model using Hugging Face's Trainer.
+    Computes evaluation metrics for validation/testing.
+    """
+    logits, labels = eval_preds
+    preds = np.argmax(logits, axis=1)
 
-    Args:
-        train_dataset: Training dataset.
-        val_dataset: Validation dataset.
-        model: Pre-trained model instance.
-        tokenizer: Tokenizer instance.
-        output_dir (str): Directory to save the model.
+    precision, recall, f1, _ = precision_recall_fscore_support(labels, preds, average="weighted")
+    acc = accuracy_score(labels, preds)
 
-    Returns:
-        trainer: Trained model instance.
+    print(f"Metrics -> Accuracy: {acc}, F1: {f1}, Precision: {precision}, Recall: {recall}")
+    return {
+        "accuracy": acc,
+        "f1": f1,
+        "precision": precision,
+        "recall": recall
+    }
+
+def train_model(train_dataset, val_dataset, model, output_dir="./model", class_weights=None):
+    """
+    Trains the model using a custom Trainer with class weights.
     """
     training_args = TrainingArguments(
         output_dir=output_dir,
-        num_train_epochs=3,
-        per_device_train_batch_size=16,
-        per_device_eval_batch_size=16,
-        evaluation_strategy="epoch",
+        evaluation_strategy="epoch",  # Evaluate after each epoch
         save_strategy="epoch",
         load_best_model_at_end=True,
         logging_dir="./logs",
+        logging_steps=50,
+        num_train_epochs=1,  # Increase epochs for better fine-tuning
+        per_device_train_batch_size=4,
+        per_device_eval_batch_size=4,
+        learning_rate=2e-5,
+        weight_decay=0.01
     )
 
-    trainer = Trainer(
+    trainer = WeightedTrainer(
         model=model,
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=val_dataset,
-        tokenizer=tokenizer,
+        compute_metrics=compute_metrics,
+        class_weights=class_weights  # Pass class weights here
     )
 
     trainer.train()
+    eval_results = trainer.evaluate()
+    print(f"Final Evaluation Results: {eval_results}")
     return trainer
