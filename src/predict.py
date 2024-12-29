@@ -20,20 +20,22 @@ def predict_sentiment(text, model, tokenizer):
         truncation=True,
         return_tensors="pt",
     )
-    model.eval()
     with torch.no_grad():
         logits = model(**inputs).logits
-        probs = F.softmax(logits, dim=1)
-        print(f"Logits: {logits}")
-        print(f"Softmax Probabilities: {probs}")
-        predicted_class = torch.argmax(probs, dim=1).item()
-        print(f"Predicted Class: {predicted_class}")
+        probs = F.softmax(logits, dim=1).squeeze(0)  # Remove batch dimension
+
+        # Custom threshold for neutral
+        if len(probs) > 1 and probs[1] > 0.35:  # Adjust threshold as needed
+            predicted_class = 1
+        else:
+            predicted_class = torch.argmax(probs).item()
+
     return label_mapping[predicted_class]
 
 test_texts = [
     "I am extremely happy with the product. It’s fantastic!",  # Expected: positive
     "This is the worst experience I’ve ever had.",            # Expected: negative
-    "The product seems okay, but I’m not sure yet.",          # Expected: neutral
+    "The product seems ok, but I’m fine with it",          # Expected: neutral
 ]
 
 for text in test_texts:
