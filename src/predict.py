@@ -2,8 +2,8 @@ from transformers import BertForSequenceClassification, BertTokenizer
 import torch
 import torch.nn.functional as F
 
-model_path = "model_fold_4/checkpoint-8"  # Path to checkpoint
-tokenizer_path = "bert-base-uncased"            # Original tokenizer path
+model_path = "model_fold_1/checkpoint-7"
+tokenizer_path = "bert-base-uncased"
 
 model = BertForSequenceClassification.from_pretrained(model_path)
 tokenizer = BertTokenizer.from_pretrained(tokenizer_path)
@@ -22,10 +22,9 @@ def predict_sentiment(text, model, tokenizer):
     )
     with torch.no_grad():
         logits = model(**inputs).logits
-        probs = F.softmax(logits, dim=1).squeeze(0)  # Remove batch dimension
+        probs = F.softmax(logits, dim=1).squeeze(0)
 
-        # Custom threshold for neutral
-        if len(probs) > 1 and probs[1] > 0.35:  # Adjust threshold as needed
+        if len(probs) > 1 and probs[1] > 0.35:
             predicted_class = 1
         else:
             predicted_class = torch.argmax(probs).item()
@@ -35,7 +34,7 @@ def predict_sentiment(text, model, tokenizer):
 test_texts = [
     "I am extremely happy with the product. It’s fantastic!",  # Expected: positive
     "This is the worst experience I’ve ever had.",            # Expected: negative
-    "The product seems ok, but I’m fine with it",          # Expected: neutral
+    "The product seems ok, but I’m going to think about it",          # Expected: neutral
 ]
 
 for text in test_texts:

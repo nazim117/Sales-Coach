@@ -1,8 +1,6 @@
-import numpy as np
 import pandas as pd
-from sklearn.feature_extraction.text import TfidfVectorizer
-from imblearn.over_sampling import SMOTE
 import os
+
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 
 def load_and_preprocess_data(file_path):

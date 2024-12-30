@@ -1,11 +1,8 @@
-from sklearn.metrics import f1_score, accuracy_score, precision_score, recall_score
+from sklearn.metrics import f1_score, accuracy_score, precision_score, recall_score, classification_report
 import numpy as np
-from sklearn.metrics import classification_report
 import torch
 from transformers import Trainer, TrainingArguments
 from torch.nn import CrossEntropyLoss
-from sklearn.metrics import classification_report
-from sklearn.metrics import f1_score
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -71,12 +68,12 @@ def train_model(train_dataset, val_dataset, model, output_dir="./model", class_w
     """
     training_args = TrainingArguments(
         output_dir=output_dir,
-        evaluation_strategy="epoch",  # Evaluate after each epoch
+        evaluation_strategy="epoch",
         save_strategy="epoch",
         load_best_model_at_end=True,
         logging_dir="./logs",
         logging_steps=50,
-        num_train_epochs=3,  # Increase epochs for better fine-tuning
+        num_train_epochs=5,
         per_device_train_batch_size=4,
         per_device_eval_batch_size=4,
         learning_rate=2e-5,
@@ -90,7 +87,7 @@ def train_model(train_dataset, val_dataset, model, output_dir="./model", class_w
         train_dataset=train_dataset,
         eval_dataset=val_dataset,
         compute_metrics=compute_metrics,
-        class_weights=class_weights  # Pass class weights here
+        class_weights=class_weights
     )
 
     trainer.train()

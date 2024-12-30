@@ -11,7 +11,7 @@ class SalesDataset(Dataset):
         """
         self.input_ids = tokenized_inputs["input_ids"]
         self.attention_mask = tokenized_inputs["attention_mask"]
-        self.labels = torch.tensor(labels, dtype=torch.long)  # Ensure labels are long integers
+        self.labels = torch.tensor(labels, dtype=torch.long)
 
     def __len__(self):
         """Return the number of samples in the dataset."""
