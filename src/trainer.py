@@ -1,14 +1,11 @@
 from sklearn.metrics import f1_score, accuracy_score, precision_score, recall_score, classification_report
 import numpy as np
 import torch
-import torch_directml
 from transformers import Trainer, TrainingArguments
 from torch.nn import CrossEntropyLoss
 
-# Initialize DirectML device
-device = torch_directml.device(0)  # Replace `0` with your intended device ID if needed
-
-print("Using DirectML Device:", device)
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print("Using device:", device)
 
 class WeightedTrainer(Trainer):
     def __init__(self, model=None, *args, class_weights=None, thresholds=None, **kwargs):
