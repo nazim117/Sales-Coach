@@ -40,3 +40,8 @@ test_texts = [
 for text in test_texts:
     sentiment = predict_sentiment(text, model, tokenizer)
     print(f"Text: {text}\nPredicted Sentiment: {sentiment}\n")
+
+# save_directory = "./best_model"
+# model.save_pretrained(save_directory)
+# tokenizer.save_pretrained(save_directory)
+# print(f"Best model and tokenizer saved to {save_directory}")

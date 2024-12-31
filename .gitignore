@@ -11,6 +11,7 @@ model_fold_1/
 model_fold_2/
 model_fold_3/
 model_fold_4/
+best_model/
 
 .env
 data/

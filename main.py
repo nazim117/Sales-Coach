@@ -4,68 +4,74 @@ from src.data_loader import load_and_preprocess_data, balance_dataset
 from src.tokenizer import load_tokenizer, tokenize_data
 from src.dataset import SalesDataset
 from src.trainer import train_model
-from sklearn.model_selection import KFold
 import numpy as np
 from transformers import AutoModelForSequenceClassification
+from sklearn.preprocessing import LabelEncoder  # Ensure this import is correct
+import pandas as pd
 
-data = load_and_preprocess_data("data/archive/generated_sales_calls.csv")
+# Load and preprocess the training dataset
+data = load_and_preprocess_data("data/twitter_training.csv")
 
+# Balance the training dataset
 balanced_data = balance_dataset(data)
-texts = np.array(balanced_data["transcript"].values.tolist())
-labels = np.array(balanced_data["sentiment_label"].values)
+train_texts = np.array(balanced_data["tweet_content"].values.tolist())
+train_labels = np.array(balanced_data["sentiment_label"].values)
 
 print(balanced_data["sentiment_label"].value_counts())
 print(balanced_data.head())
 
-kf = KFold(n_splits=4, shuffle=True, random_state=42)
+# Load and preprocess the validation dataset
+validation_data = pd.read_csv("data/twitter_validation.csv")
+validation_data.columns = ['tweet_id', 'entity', 'sentiment', 'tweet_content']
+
+label_encoder = LabelEncoder()
+validation_data['sentiment_label'] = label_encoder.fit_transform(validation_data['sentiment'])
+validation_texts = validation_data['tweet_content'].tolist()
+validation_labels = validation_data['sentiment_label'].tolist()
+
+# Device setup
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-for fold, (train_idx, val_idx) in enumerate(kf.split(texts)):
-    print(f"Processing Fold {fold + 1}")
+# Tokenize the training and validation data
+tokenizer = load_tokenizer()
+train_tokenized = tokenize_data(train_texts.tolist(), tokenizer)
+validation_tokenized = tokenize_data(validation_texts, tokenizer)
 
-    train_texts = texts[train_idx]
-    val_texts = texts[val_idx]
-    train_labels, val_labels = labels[train_idx], labels[val_idx]
+train_dataset = SalesDataset(train_tokenized, train_labels)
+validation_dataset = SalesDataset(validation_tokenized, validation_labels)
 
-    tokenizer = load_tokenizer()
-    train_tokenized = tokenize_data(train_texts.tolist(), tokenizer)
-    val_tokenized = tokenize_data(val_texts.tolist(), tokenizer)
-    print(train_tokenized["input_ids"][:5])
+# Compute class weights for imbalanced datasets
+class_counts = np.bincount(train_labels)  # Number of occurrences of each class
+total_samples = sum(class_counts)
+class_weights = 1.0 / class_counts  # Inverse frequency for class weights
+class_weights = torch.tensor(class_weights, dtype=torch.float32).to(device)
 
-    train_dataset = SalesDataset(train_tokenized, train_labels)
-    val_dataset = SalesDataset(val_tokenized, val_labels)
+print(f"Class Weights: {class_weights}")
 
-    # Compute class weights
-    class_counts = np.bincount(train_labels)
-    total_samples = sum(class_counts)
-    class_weights = torch.tensor([2.0, 1.0, 2.0], dtype=torch.float32).to(device)
-    class_weights = class_weights / class_weights.sum()
- 
-    print(f"Class Weights: {class_weights}")
+# Load the model
+model = AutoModelForSequenceClassification.from_pretrained(
+    "bert-base-uncased", num_labels=4
+)
 
-    # Load the model
-    model = AutoModelForSequenceClassification.from_pretrained(
-        "bert-base-uncased", num_labels=3
-    )
+# Train model
+trainer = train_model(
+    train_dataset=train_dataset,
+    val_dataset=validation_dataset,
+    model=model,
+    output_dir="./model_with_validation",
+    class_weights=class_weights,
+)
 
-    # Train model
-    trainer = train_model(
-        train_dataset=train_dataset,
-        val_dataset=val_dataset,
-        model=model,
-        output_dir=f"./model_fold_{fold + 1}",
-        class_weights=class_weights,
-    )
+# Evaluate predictions and generate confusion matrix
+validation_predictions = trainer.predict(validation_dataset)
+preds = np.argmax(validation_predictions.predictions, axis=1)
 
-    # Evaluate predictions and generate confusion matrix
-    val_predictions = trainer.predict(val_dataset)
-    preds = np.argmax(val_predictions.predictions, axis=1)
+# Confusion Matrix
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+conf_matrix = confusion_matrix(validation_labels, preds, labels=[0, 1, 2, 3])
+disp = ConfusionMatrixDisplay(confusion_matrix=conf_matrix, display_labels=["negative", "neutral", "positive", "irrelevant"])
+disp.plot(cmap="Blues")
+plt.show()
 
-    # Confusion Matrix
-    from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
-    conf_matrix = confusion_matrix(val_labels, preds, labels=[0, 1, 2])
-    disp = ConfusionMatrixDisplay(confusion_matrix=conf_matrix, display_labels=["negative", "neutral", "positive"])
-    disp.plot(cmap="Blues")
-    plt.show()
 
-    print(f"Fold {fold + 1} complete.")
+print("Training with validation dataset complete.")

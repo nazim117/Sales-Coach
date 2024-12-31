@@ -1,10 +1,14 @@
 from sklearn.metrics import f1_score, accuracy_score, precision_score, recall_score, classification_report
 import numpy as np
 import torch
+import torch_directml
 from transformers import Trainer, TrainingArguments
 from torch.nn import CrossEntropyLoss
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# Initialize DirectML device
+device = torch_directml.device(0)  # Replace `0` with your intended device ID if needed
+
+print("Using DirectML Device:", device)
 
 class WeightedTrainer(Trainer):
     def __init__(self, model=None, *args, class_weights=None, thresholds=None, **kwargs):
@@ -13,8 +17,8 @@ class WeightedTrainer(Trainer):
         self.thresholds = thresholds or {"neutral": 0.35}
 
     def compute_loss(self, model, inputs, return_outputs=False, **kwargs):
-        labels = inputs.pop("labels")
-        outputs = model(**inputs)
+        labels = inputs.pop("labels").to(device)
+        outputs = model(**{k: v.to(device) for k, v in inputs.items()})
         logits = outputs.logits
 
         # Weighted loss
@@ -73,14 +77,13 @@ def train_model(train_dataset, val_dataset, model, output_dir="./model", class_w
         load_best_model_at_end=True,
         logging_dir="./logs",
         logging_steps=50,
-        num_train_epochs=5,
+        num_train_epochs=3,
         per_device_train_batch_size=4,
         per_device_eval_batch_size=4,
         learning_rate=2e-5,
         weight_decay=0.01
     )
 
-    # Ensure the model is passed correctly to the trainer
     trainer = WeightedTrainer(
         model=model,
         args=training_args,

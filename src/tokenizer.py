@@ -3,7 +3,7 @@ from transformers import BertTokenizer
 def load_tokenizer(model_name="bert-base-uncased"):
     return BertTokenizer.from_pretrained(model_name)
 
-def tokenize_data(texts, tokenizer, max_len=512):
+def tokenize_data(texts, tokenizer, max_len=128):
     tokenized = tokenizer(
         texts,
         max_length=max_len,
